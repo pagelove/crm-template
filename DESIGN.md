@@ -24,4 +24,4 @@ The large arched portrait, decorative progress rings, poetic empty states and up
 
 ## Assets
 
-The package serves `public/assets/Manrope-Variable.woff2` and `public/assets/crm-portraits.webp` at their `/assets/` URLs. A deployment must preserve those paths. Ship the CRM-local Source Serif font, favicon, stylesheets and JavaScript as well. No runtime CDN is used.
+The package serves `site/assets/Manrope-Variable.woff2` and `site/assets/crm-portraits.webp` at their `/assets/` URLs. A deployment must preserve those paths. Ship the CRM-local Source Serif font, favicon, stylesheets and JavaScript as well. No runtime CDN is used.

@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 // Point CRM_TEST_JSDOM at an installed jsdom package, or install jsdom locally.
 const { JSDOM } = require(process.env.CRM_TEST_JSDOM || 'jsdom');
-const root = path.resolve(__dirname, '../public/crm-demo');
+const root = path.resolve(__dirname, '../site/crm-demo');
 const source = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const script = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
 const fixed = Date.parse('2026-09-05T16:00:00Z');
