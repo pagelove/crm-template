@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kin — Personal CRM</title>
+  <meta name="description" content="A personal relationship notebook: keep track of conversations and know when to reconnect.">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css?v=7">
+  <noscript><link rel="stylesheet" href="no-script.css"></noscript>
+</head>
+<body xmlns:e="https://pagelove.org/Binding/Sessel" xmlns:p="https://pagelove.org/1.0"
+      e:overduecount="(${[itemprop='dueEpoch']} from self).filter(el =&gt; el.value().Number() &lt; Temporal.Now.instant().epochSeconds).count().String()"
+      e:peoplecount="(${[itemprop='contactId']} from self).count().String()"
+      e:logcount="(${[itemprop='interactionId']} from self).count().String()">
+
+  <!-- ==================== Schemas ==================== -->
+  <div hidden itemscope itemtype="https://pagelove.org/Schema">
+    <meta itemprop="type" content="https://wef.crm/Contact">
+    <meta itemprop="name" content="Contact">
+    <div itemprop="property" itemscope itemtype="https://pagelove.org/Property">
+      <meta itemprop="name" content="contactId">
+      <meta itemprop="type" content="https://schema.host/Text">
+      <meta itemprop="cardinality" content="1..1">
+      <meta itemprop="unique" content="true">
+      <meta itemprop="@key" content="true">
+    </div>
+    <div itemprop="property" itemscope itemtype="https://pagelove.org/Property">
+      <meta itemprop="name" content="name">
+      <meta itemprop="type" content="https://schema.host/Text">
+      <meta itemprop="cardinality" content="1..1">
+    </div>
+    <div itemprop="property" itemscope itemtype="https://pagelove.org/Property">
+      <meta itemprop="name" content="cadenceDays">
+      <meta itemprop="type" content="https://schema.host/Integer">
+      <meta itemprop="cardinality" content="1..1">
+    </div>
+    <div itemprop="property" itemscope itemtype="https://pagelove.org/Property">
+      <meta itemprop="name" content="dueEpoch">
+      <meta itemprop="type" content="https://schema.host/Number">
+      <meta itemprop="cardinality" content="1..1">
+    </div>
+    <div itemprop="property" itemscope itemtype="https://pagelove.org/Property">
+      <meta itemprop="name" content="lastContactedAt">
+      <meta itemprop="type" content="https://schema.host/Date">
+      <meta itemprop="cardinality" content="0..1">
+    </div>
+  </div>
+
+  <div hidden itemscope itemtype="https://pagelove.org/Schema">
+    <meta itemprop="type" content="https://wef.crm/Interaction">
+    <meta itemprop="name" content="Interaction">
+    <div itemprop="property" itemscope itemtype="https://pagelove.org/Property">
+      <meta itemprop="name" content="interactionId">
+      <meta itemprop="type" content="https://schema.host/Text">
+      <meta itemprop="cardinality" content="1..1">
+      <meta itemprop="unique" content="true">
+      <meta itemprop="@key" content="true">
+    </div>
+    <!-- Named interactionTargetId, not contactId: a unique property name on one
+         schema collides with an ordinary field of the same name on another. -->
+    <div itemprop="property" itemscope itemtype="https://pagelove.org/Property">
+      <meta itemprop="name" content="interactionTargetId">
+      <meta itemprop="type" content="https://schema.host/Text">
+      <meta itemprop="cardinality" content="1..1">
+      <meta itemprop="references" content="https://wef.crm/Contact#contactId">
+      <meta itemprop="cascade" content="true">
+    </div>
+    <div itemprop="property" itemscope itemtype="https://pagelove.org/Property">
+      <meta itemprop="name" content="occurredAt">
+      <meta itemprop="type" content="https://schema.host/Date">
+      <meta itemprop="cardinality" content="1..1">
+    </div>
+    <div itemprop="property" itemscope itemtype="https://pagelove.org/Property">
+      <meta itemprop="name" content="note">
+      <meta itemprop="type" content="https://schema.host/Text">
+      <meta itemprop="cardinality" content="0..1">
+    </div>
+  </div>
+
+  <!-- ==================== Authorization ====================
+       THIS IS THE DEMO COPY. It is deliberately open so the mechanics can be
+       verified without a signed-in session. For the real single-owner template,
+       replace the four rules below with:
+
+         actor *              resource /crm/*  method GET,PUT,POST,DELETE  Deny
+         actor you@email.com  resource /crm/*  method GET,PUT,POST,DELETE  Allow
+
+       Scope every rule to this app's own path. Never use resource="/*": a rule's
+       resource pattern is host-wide regardless of which document declares it. -->
+  <div hidden itemscope itemtype="https://pagelove.org/AuthorizationRule">
+    <meta itemprop="actor" content="*">
+    <meta itemprop="resource" content="/crm-demo/index.html">
+    <meta itemprop="method" content="GET">
+    <meta itemprop="action" content="Allow">
+  </div>
+  <div hidden itemscope itemtype="https://pagelove.org/AuthorizationRule">
+    <meta itemprop="actor" content="*">
+    <meta itemprop="resource" content="/crm-demo/index.html">
+    <meta itemprop="method" content="POST">
+    <meta itemprop="selector" content="#people">
+    <meta itemprop="action" content="Allow">
+  </div>
+  <div hidden itemscope itemtype="https://pagelove.org/AuthorizationRule">
+    <meta itemprop="actor" content="*">
+    <meta itemprop="resource" content="/crm-demo/index.html">
+    <meta itemprop="method" content="POST">
+    <meta itemprop="selector" content="#log">
+    <meta itemprop="action" content="Allow">
+  </div>
+
+  <!-- Logging an interaction also pushes the person's next-due date forward,
+       so the demo copy needs a PUT rule for that one property. Without it the
+       POST succeeds and the follow-up PUT 401s, leaving the row stale. -->
+  <div hidden itemscope itemtype="https://pagelove.org/AuthorizationRule">
+    <meta itemprop="actor" content="*">
+    <meta itemprop="resource" content="/crm-demo/index.html">
+    <meta itemprop="method" content="PUT">
+    <meta itemprop="selector" content="#people [itemprop='dueEpoch']">
+    <meta itemprop="action" content="Allow">
+  </div>
+
+  <!-- ==================== Shape ====================
+       Closed shapes: every element AND every attribute under the scope must be
+       named by a permit. meta[itemprop] alone does NOT cover the content
+       attribute, which is the single most common cause of a mystery 422. -->
+  <div hidden itemscope itemtype="https://pagelove.org/ShapeConstraint">
+    <meta itemprop="resource" content="/crm-demo/index.html">
+    <meta itemprop="selector" content="#people">
+    <meta itemprop="permit" content="ul[id='people']">
+    <meta itemprop="permit" content="li[data-contact][itemscope][itemtype]">
+    <meta itemprop="permit" content="meta[itemprop][content]">
+    <meta itemprop="permit" content="span[itemprop]">
+  </div>
+  <div hidden itemscope itemtype="https://pagelove.org/ShapeConstraint">
+    <meta itemprop="resource" content="/crm-demo/index.html">
+    <meta itemprop="selector" content="#log">
+    <meta itemprop="permit" content="ul[id='log']">
+    <meta itemprop="permit" content="li[data-contact][itemscope][itemtype]">
+    <meta itemprop="permit" content="meta[itemprop][content]">
+    <meta itemprop="permit" content="span[itemprop]">
+  </div>
+
+  <!-- ==================== UI ==================== -->
+  <a class="skip-link" href="#main">Skip to contacts</a>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="wordmark" href="./">kin<span>Personal CRM</span></a>
+      <nav aria-label="CRM navigation"><a href="#main" aria-current="page">Contacts</a><a href="#conversation-heading">New conversation</a></nav>
+      <div class="topbar-actions"><span class="edition">Open demo</span><button id="refresh" class="quiet enhancement" type="button">Refresh <span aria-hidden="true">↻</span></button></div>
+    </header>
+    <div class="intro">
+      <div><h1>Your contacts</h1><p class="lede">Conversations, notes, and upcoming check-ins.</p></div>
+      <dl class="stats" aria-label="Your relationships at a glance">
+        <div class="due"><dt>Due now</dt><dd><p:stamp overduecount></p:stamp></dd></div>
+        <div><dt>People</dt><dd><p:stamp peoplecount></p:stamp></dd></div>
+        <div><dt>Conversations</dt><dd><p:stamp logcount></p:stamp></dd></div>
+      </dl>
+    </div>
+    <div id="feedback" class="feedback" hidden><p id="status" role="status" aria-live="polite"></p><button id="retry" type="button" class="quiet" hidden>Try again</button></div>
+    <main id="main" tabindex="-1">
+      <div class="workspace enhancement">
+        <section class="people-panel" aria-labelledby="people-heading">
+          <div class="section-title"><div><h2 id="people-heading">People</h2><p id="people-summary" class="caption"></p></div><a href="#new-person" class="text-link" id="open-person"><span aria-hidden="true">＋</span> Add person</a></div>
+          <div class="search"><label for="contact-search" class="sr-only">Search people or conversation notes</label><input id="contact-search" type="search" placeholder="Search people or notes" autocomplete="off"></div>
+          <div class="filter-bar" role="group" aria-label="Filter people"><button type="button" data-filter="all" aria-pressed="true">Everyone <span id="all-count"></span></button><button type="button" data-filter="due" aria-pressed="false">Due now <span id="due-count"></span></button><button type="button" data-filter="upcoming" aria-pressed="false">Upcoming</button></div>
+          <div id="contacts-view"><p class="loading-state" role="status">Loading your people…</p></div>
+          <details id="new-person" class="add-person">
+            <summary>Add a person <span aria-hidden="true">+</span></summary>
+            <form id="add-person" autocomplete="off">
+              <label>Name<input name="name" required maxlength="150" placeholder="Full name" autocomplete="name"></label>
+              <label>Check in every <span class="input-unit"><input name="cadence" type="number" min="1" max="3650" step="1" value="30" required><span>days</span></span></label>
+              <p class="form-hint">New contacts are due for a check-in until you save a conversation.</p>
+              <button type="submit" disabled>Add person</button>
+            </form>
+          </details>
+        </section>
+        <section class="conversation-panel" aria-labelledby="conversation-heading">
+          <div id="person-context" role="region" aria-labelledby="selected-person-name" tabindex="-1"><h2 class="context-name" id="selected-person-name">Contact details</h2><p class="context-meta">Loading saved conversations and follow-up dates…</p></div>
+          <div class="composer">
+            <h2 id="conversation-heading">Save a conversation</h2>
+            <p class="caption">Record what you discussed and when it happened.</p>
+            <form id="add-log" autocomplete="off">
+              <div class="form-row"><label>Person<select name="target" required></select></label><label>When<input name="when" type="date" required></label></div>
+              <label>Notes<textarea name="note" rows="4" maxlength="4000" placeholder="What you discussed, or something to follow up on" required></textarea></label>
+              <div class="save-row"><p id="next-checkin" class="form-hint"></p><button type="submit" disabled>Save conversation</button></div>
+            </form>
+          </div>
+          <div class="activity">
+            <div class="section-title"><h2 id="activity-heading">Conversation history</h2><button id="activity-toggle" class="text-button" type="button" aria-pressed="false">Show everyone</button></div>
+            <ol id="activity-view" aria-labelledby="activity-heading"></ol>
+          </div>
+        </section>
+      </div>
+      <div class="source-data"><h2>People</h2><ul id="people">
+        <li data-contact="c-seed1" itemscope itemtype="https://wef.crm/Contact">
+          <meta itemprop="contactId" content="c-seed1">
+          <meta itemprop="cadenceDays" content="30">
+          <meta itemprop="dueEpoch" content="1771000000">
+          <meta itemprop="lastContactedAt" content="2026-01-15">
+          <span itemprop="name">Ana Ruiz</span>
+        </li>
+        <li data-contact="c-seed2" itemscope itemtype="https://wef.crm/Contact">
+          <meta itemprop="contactId" content="c-seed2">
+          <meta itemprop="cadenceDays" content="90">
+          <meta itemprop="dueEpoch" content="1799000000">
+          <meta itemprop="lastContactedAt" content="2026-09-01">
+          <span itemprop="name">Ben Okafor</span>
+        </li>
+      </ul><h2>Conversations</h2><ul id="log">
+        <li data-contact="c-seed1" itemscope itemtype="https://wef.crm/Interaction">
+          <meta itemprop="interactionId" content="i-seed1">
+          <meta itemprop="interactionTargetId" content="c-seed1">
+          <meta itemprop="occurredAt" content="2026-01-15">
+          <span itemprop="note">Coffee, talked about the new role</span>
+        </li>
+        <li data-contact="c-seed2" itemscope itemtype="https://wef.crm/Interaction">
+          <meta itemprop="interactionId" content="i-seed2">
+          <meta itemprop="interactionTargetId" content="c-seed2">
+          <meta itemprop="occurredAt" content="2026-09-01">
+          <span itemprop="note">Quick call about the conference</span>
+        </li>
+      </ul></div>
+      <noscript><p class="noscript-note">Your saved records are shown above. Enable JavaScript to search people and save a conversation.</p></noscript>
+    </main>
+    <footer><span>Kin · Personal CRM</span><details><summary>About this demo</summary><p>This is a shared, open demo. Use sample details, since anyone with the demo link can read its records. The two seed contacts use fictional sample portraits. New contacts use initials. Records live in this page’s HTML. Counts are computed by Pagelove on each read; the browser builds the contact and conversation views from those records. Saving a conversation also updates the next check-in date. A static local preview can show the interface, but needs Pagelove to save changes.</p></details></footer>
+  </div>
+  <script src="app.js?v=5"></script>
+</body>
+</html>
