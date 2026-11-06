@@ -11,6 +11,8 @@
   var selected = "";
   var filter = "all";
   var allActivity = false;
+  var rosterOrder="due",visiblePeople=[];
+  function exportRows(headers,rows,name){const cell=value=>'"'+String(value??'').replace(/^[\s]*[=+@-]/,m=>"'"+m).replaceAll('"','""')+'"',text='\ufeff'+[headers,...rows].map(row=>row.map(cell).join(',')).join('\r\n'),a=document.createElement('a'),url=URL.createObjectURL(new Blob([text],{type:'text/csv;charset=utf-8'}));a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
   var busy = false;
   var pending = null;
   var sourceETag = null;
@@ -85,9 +87,10 @@
       var haystack = person.name + " " + logs.filter(function (entry) { return entry.target === person.id; }).map(function (entry) { return entry.note; }).join(" ");
       return (!query || haystack.toLocaleLowerCase().includes(query)) && (filter === "all" || (filter === "due" ? isDue(person) : !isDue(person)));
     });
+    matches.sort(function(a,b){return rosterOrder==='name'?a.name.localeCompare(b.name):rosterOrder==='recent'?String(latestFor(b)?.when||'').localeCompare(String(latestFor(a)?.when||'')):a.due-b.due||a.name.localeCompare(b.name);});visiblePeople=matches;
     $("#all-count").textContent = people.length;
     $("#due-count").textContent = people.filter(isDue).length;
-    $("#people-summary").textContent = matches.length + " of " + people.length + " people · due check-ins first";
+    $("#people-summary").textContent = matches.length + " of " + people.length + " people · "+({due:"next check-in",name:"name A–Z",recent:"recent conversations"}[rosterOrder]);
     $("#contacts-view").innerHTML = matches.length ? matches.map(function (person) {
       var last = latestFor(person);
       return '<button class="contact-card" type="button" data-person="' + esc(person.id) + '" aria-pressed="' + (person.id === selected) + '"><span class="avatar">' + portraitMarkup(person, false) + '</span><span class="contact-main"><span class="contact-name">' + esc(person.name) + '</span><span class="contact-cadence">Every ' + esc(person.cadence) + ' days</span></span>' + '<span class="contact-state' + (isDue(person) ? ' is-due' : '') + '">' + esc(dueLabel(person)) + '</span><span class="contact-note">' + (last ? '<strong>Last conversation · ' + esc(formatDay(last.when)) + '</strong>' + esc(last.note) : 'No conversations recorded.') + '</span></button>';
@@ -317,6 +320,8 @@
   $("#open-person").addEventListener("click", function (event) { event.preventDefault(); $("#new-person").open = true; personForm.elements.namedItem("name").focus(); });
   logForm.elements.namedItem("when").value = today();
   logForm.elements.namedItem("when").max = today();
+
+  var tools=document.createElement('div');tools.className='quality-tools';var sortLabel=document.createElement('label'),sort=document.createElement('select'),clear=document.createElement('button'),exportButton=document.createElement('button');sortLabel.textContent='Order contacts';sort.setAttribute('aria-label','Order contacts');for(var pair of [['due','Next check-in'],['name','Name A–Z'],['recent','Recent conversations']]){var option=document.createElement('option');option.value=pair[0];option.textContent=pair[1];sort.append(option);}sortLabel.append(sort);clear.type='button';clear.textContent='Clear search';exportButton.type='button';exportButton.textContent='Export visible CSV';tools.append(sortLabel,clear,exportButton);($('#contact-search').closest('label')||$('#contact-search').parentElement).after(tools);sort.addEventListener('change',()=>{rosterOrder=sort.value;renderContacts();});clear.addEventListener('click',()=>{$('#contact-search').value='';renderContacts();$('#contact-search').focus();});exportButton.addEventListener('click',()=>{if(!visiblePeople.length){say('No visible contacts to export.');return;}exportRows(['Name','Check-in cadence (days)','Next follow-up','Last conversation'],visiblePeople.map(p=>[p.name,p.cadence,dueDay(p.due),latestFor(p)?.when||'']),'contacts.csv');say('Visible contacts exported. Keep personal contact exports private.');});
   readRecords();
   render();
   document.documentElement.classList.add("enhanced");
