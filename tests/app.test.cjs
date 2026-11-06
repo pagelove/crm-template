@@ -19,6 +19,7 @@ function setup(options = {}) {
   let getFailures = options.getFailures || 0;
   let ambiguousPost = !!options.ambiguousPost;
   let blocker = options.blocker;
+  let revision=1;
   w.Date = class extends Date { constructor(...args) { super(...(args.length ? args : [fixed])); } static now() { return fixed; } };
   w.matchMedia = query => ({ matches: query === "(max-width: 800px)" ? !!options.stacked : query === "(prefers-reduced-motion: reduce)" ? !!options.reducedMotion : false });
   w.CSS = { escape: text => String(text).replace(/["\\]/g, '\\$&') };
@@ -26,14 +27,16 @@ function setup(options = {}) {
     const method = init.method || 'GET';
     const requestURL = new URL(url, w.location.origin);
     assert.equal(requestURL.pathname, '/crm-demo/index.html', 'all calls address the concrete authorized page');
-    if (method === 'HEAD') return new Response(null, { headers: options.preview ? { 'X-Pagelove-Preview': 'local' } : {} });
+    if (method === 'HEAD') return new Response(null, { headers: { ETag: options.weakETag?'W/\"1\"':'\"'+revision+'\"', ...(options.preview ? { 'X-Pagelove-Preview': 'local' } : {}) } });
     const selector = init.headers.Range.slice('selector='.length);
-    calls.push({ method, selector, body: init.body });
+    calls.push({ method, selector, body: init.body, ifMatch:init.headers['If-Match'] });
     if (method === 'GET') {
       if (getFailures-- > 0) return new Response('unavailable', { status: 503 });
-      return new Response(server.serialize());
+      return new Response(server.serialize(),{headers:{ETag:options.weakETag?'W/"1"':'"'+revision+'"'}});
     }
     if (blocker) { const wait = blocker; blocker = null; await wait; }
+    if(options.staleOnce){options.staleOnce=false;revision++;return new Response('stale',{status:412});}
+    assert.equal(init.headers['If-Match'],'\"'+revision+'\"','every mutation is tied to the confirmed source revision');
     const target = server.window.document.querySelector(selector);
     assert.ok(target, 'the selector must address an actual target');
     if (method === 'POST') {
@@ -43,7 +46,7 @@ function setup(options = {}) {
       if (putFailures-- > 0) return new Response('Denied', { status: 401 });
       target.outerHTML = init.body;
     } else assert.fail('unexpected mutation method');
-    return new Response('', { status: 206 });
+    revision++;return new Response('', { status: 206,headers:{ETag:'\"'+revision+'\"'} });
   };
   w.eval(script);
   const q = selector => w.document.querySelector(selector);
@@ -84,6 +87,7 @@ test('double submit produces one escaped, closed-shape person record', async () 
   app.set('#add-person [name=name]', hostileName);
   app.submit('#add-person');
   app.submit('#add-person');
+  await settle();
   assert.equal(app.calls.filter(call => call.method === 'POST').length, 1);
   release();
   await settle();
@@ -310,3 +314,6 @@ test('stacked contact selection focuses and reveals a stable summary while deskt
     app.dom.window.close();
   }
 });
+
+test('writes without a strong revision are refused and retain the form',async()=>{const app=setup({weakETag:true});app.set('#add-person [name=name]','Keep this draft');app.submit('#add-person');await settle();assert.equal(app.calls.filter(x=>x.method==='POST').length,0);assert.equal(app.q('#add-person [name=name]').value,'Keep this draft');assert.match(app.q('#status').textContent,/strong source revision/);app.dom.window.close();});
+test('a stale conditional write cannot replace records or clear the draft',async()=>{const app=setup({staleOnce:true});app.set('#add-person [name=name]','Conflict draft');app.submit('#add-person');await settle();assert.equal(app.server.window.document.querySelector('#people').children.length,2);assert.equal(app.q('#add-person [name=name]').value,'Conflict draft');assert.match(app.q('#status').textContent,/source changed/i);assert.equal(app.calls.filter(x=>x.method==='POST').length,1);app.dom.window.close();});

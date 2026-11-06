@@ -1,0 +1,44 @@
+{
+  "utc": "2026-11-06T02:46:03.388Z",
+  "actor": "Codex",
+  "guideEdition": "2.4",
+  "sourceBase": "f11d0628a428348443c61af2fb84e9ca8c029955",
+  "checks": [
+    {
+      "name": "test",
+      "code": 0
+    }
+  ],
+  "browser": "PASS: local conversation and due-date save;17 mocked tests include stale/weak rejection.",
+  "limits": [
+    "No new live private data or host policy acceptance claimed.",
+    "Physical device and assistive-technology checks remain separate."
+  ],
+  "files": [
+    {
+      "file": "AGENTS.md",
+      "sha256": "a883e3701c1568867e2982c3f53439287b83dbec8672e8705f3c1dbab2d711bd",
+      "bytes": 561
+    },
+    {
+      "file": "DOCUMENT-FIRST-REVIEW.md",
+      "sha256": "66393bf32cf5139229a08dd6ff1a24b7c05b4a44c93c5149182aacf40d5e8ddf",
+      "bytes": 3453
+    },
+    {
+      "file": "README.md",
+      "sha256": "f479fc521a37676748b776c24e7ebcdf0d12da46fddad9c01a1b4f5b7cbba995",
+      "bytes": 4130
+    },
+    {
+      "file": "site/crm-demo/app.js",
+      "sha256": "856232f31fd4c920854354deef6e92b282d4594f408320df348c20f4ae8fee58",
+      "bytes": 23411
+    },
+    {
+      "file": "tests/app.test.cjs",
+      "sha256": "7649bb178da54d693285bb7deae7b84a8d127dedd4e46f96d65d8e3f93c2b866",
+      "bytes": 17160
+    }
+  ]
+}

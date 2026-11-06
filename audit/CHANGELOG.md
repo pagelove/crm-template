@@ -1,0 +1,10 @@
+
+## DFD-REVIEW-20261106-PLAN — 2026-11-06T02:15:04.605Z
+Actor: Codex. User: ensure all Slide4 demos follow Document-first Development edition2.4. Review model/authority/identity/versions, exact read/write and recovery boundaries, source-preserving deployment, scoped operation and representation exceptions. Run available repository checks before/after scoped fixes; preserve authored records and existing design/game rules. Record current evidence separately from historical/live/private/device gates. Expected files: audit records, document-first contract and any identified model/persistence defects with focused regressions. No public host data/policy changes. Verification pending.
+
+DFD-REVIEW-CRM-CAS-PLAN 2026-11-06T02:18:02.010Z Actor: Codex. R07/R08/R11: CRM advertised stale-save rejection but emitted no If-Match. Add strong full-source revision to actual writes; refresh before computing derived due date; reject stale writes while keeping pending form. Extend fixture requests with version checks, negative stale/weak tests. Production fragment enforcement remains an exact-host acceptance gate. Files: app.js, tests/app.test.cjs, contract. Pending.
+
+DFD-REVIEW-CRM-CAS refinement 2026-11-06T02:18:38.863Z: first run4/15 failures exposed CRLF patch matching missing revision assignment and old synchronous POST timing assertion. Correct assignment and initial HEAD microtask ordering; retain asynchronous duplicate-submit assertion. Recheck pending.
+
+## DFD-REVIEW-20261106-RESULT — 2026-11-06T02:46:03.388Z
+Actor: Codex; reference DFD-REVIEW-20261106-PLAN. Added current edition2.4 project contract, representation exceptions, maintenance instructions, source/recovery and enforcement limits. Fixed missing conditional-write revisions and recomputation from fresh conversations. test:0. PASS: local conversation and due-date save;17 mocked tests include stale/weak rejection. Current checks do not imply live policy/privacy or physical-device/AT acceptance. No new provider, native game grants or real source-record changes. Exact file hashes and source diff: audit/document-first-review.json/.patch. Public repository commit/readback pending.

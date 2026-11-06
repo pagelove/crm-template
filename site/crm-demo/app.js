@@ -13,6 +13,7 @@
   var allActivity = false;
   var busy = false;
   var pending = null;
+  var sourceETag = null;
   var refreshNeeded = false;
 
   function esc(value) {
@@ -150,11 +151,15 @@
     }
   }
   async function request(method, selector, body) {
-    var headers = { Range: "selector=" + selector };
+    await Promise.resolve();
+    if (!/^"[^"\r\n]*"$/.test(sourceETag || "")) await reload();
+    if (!/^"[^"\r\n]*"$/.test(sourceETag || "")) throw new Error("A strong source revision is required. Refresh before saving; your draft is retained.");
+    var headers = { Range: "selector=" + selector, "If-Match": sourceETag };
     if (body) headers["Content-Type"] = "text/html";
     var response;
     try { response = await fetch(PAGE, { method: method, headers: headers, body: body, credentials: "same-origin" }); }
     catch (cause) { var unknown = new Error("The connection ended before the save could be confirmed."); unknown.uncertain = true; throw unknown; }
+    if (response.status === 412) { sourceETag = null; refreshNeeded = true; throw new Error("The source changed in another session. Refresh and review your retained draft before retrying."); }
     if (!response.ok) {
       var detail = await response.text().catch(function () { return ""; });
       var message = response.status === 401 || response.status === 403 ? "This page does not allow that change in your current session." : /shape/i.test(detail) ? "The page rejected the record format." : /reference/i.test(detail) ? "That person is no longer available. Refresh the records." : response.status === 405 || response.status === 501 ? "This preview cannot save records. Open the Pagelove deployment to make changes." : "The save failed (HTTP " + response.status + ").";
@@ -163,6 +168,7 @@
       error.duplicate = /uniqueness/i.test(detail);
       throw error;
     }
+    sourceETag = response.headers.get("ETag");
   }
   async function reload() {
     var url = new URL(PAGE, window.location.origin);
@@ -173,6 +179,7 @@
     var selectors = ["#people", "#log"];
     if (selectors.some(function (selector) { return !$(selector, doc); })) throw new Error("The response did not contain your contact records.");
     selectors.forEach(function (selector) { $(selector).innerHTML = $(selector, doc).innerHTML; });
+    sourceETag = response.headers.get("ETag");
     readRecords();
     refreshNeeded = false;
     render();
@@ -216,7 +223,7 @@
       }
       if (operation.stage === "due") {
         // Always re-read before a due-only retry so a newer conversation wins.
-        if (operation.retryDue) await reload();
+        await reload();
         var person = people.find(function (p) { return p.id === operation.target; });
         if (!person) throw new Error("The conversation was saved, but its person is no longer available.");
         var due = dueEpochFrom(latestDayFor(person, operation.when), person.cadence);
@@ -316,6 +323,7 @@
   // Only a server-provided marker identifies the isolated local preview.
   // Production remains an open demo or private template as declared in HTML.
   fetch(PAGE, { method: "HEAD", credentials: "same-origin", cache: "no-store" }).then(function (response) {
+    sourceETag = response.headers.get("ETag");
     if (response.headers.get("X-Pagelove-Preview") !== "local") return;
     $(".edition").textContent = "Local preview · sample data";
     $(".edition").classList.add("is-local-preview");
